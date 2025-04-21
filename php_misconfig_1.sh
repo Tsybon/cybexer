@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Створення директорії для вихідних файлів, якщо вона не існує
-OUTPUT_DIR="report_php_2"
+OUTPUT_DIR="report_php_1"
 mkdir -p "$OUTPUT_DIR"
 
 # Створення файлу звіту
-REPORT_FILE="report_php_2"
+REPORT_FILE="report_php_1"
 touch "$REPORT_FILE"
 
 # Функція для логування
