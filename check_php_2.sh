@@ -293,6 +293,9 @@ if command -v php &>/dev/null; then
       echo "--- preg_replace() з /e ---" >> $SCAN_RESULTS
       grep -r --include="*.php" -l "preg_replace *(.*/e" "$path" 2>/dev/null >> $SCAN_RESULTS
 
+      echo "--- str_replace з /e ---" >> $SCAN_RESULTS
+      grep -r --include="*.php" -l "str_replace *(.*/e" "$path" 2>/dev/null >> $SCAN_RESULTS
+
       echo "--- create_function() ---" >> $SCAN_RESULTS
       grep -r --include="*.php" -l "create_function *(" "$path" 2>/dev/null >> $SCAN_RESULTS
 
