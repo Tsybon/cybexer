@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Створення директорії для вихідних файлів, якщо вона не існує
-OUTPUT_DIR="./audit_output"
+OUTPUT_DIR="report_php_2"
 mkdir -p "$OUTPUT_DIR"
 
 # Створення файлу звіту
