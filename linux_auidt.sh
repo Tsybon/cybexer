@@ -11,7 +11,7 @@ else
 fi
 
 # Create output directory with timestamp
-OUTDIR="/tmp/security_audit_$(date +%Y%m%d_%H%M%S)"
+OUTDIR="/tmp/security_audit_report_1"
 mkdir -p "$OUTDIR"
 LOGFILE="$OUTDIR/security_audit.log"
 
