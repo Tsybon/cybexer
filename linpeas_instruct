@@ -1,3 +1,0 @@
-wget https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh 
-chmod +x linpeas.sh 
-./linpeas.sh -a > linpeas.txt
