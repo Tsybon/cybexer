@@ -13,7 +13,7 @@ NC="\033[0m" # No Color
 
 # Створення каталогу для результатів
 TIMESTAMP=$(date +%Y-%m-%d_%H-%M-%S)
-OUTPUT_DIR="security_audit_$TIMESTAMP"
+OUTPUT_DIR="security_audit_report_2"
 mkdir -p "$OUTPUT_DIR"
 LOG_FILE="$OUTPUT_DIR/audit_log.txt"
 
