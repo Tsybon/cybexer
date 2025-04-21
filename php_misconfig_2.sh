@@ -1,3 +1,38 @@
+#!/bin/bash
+
+# Створення директорії для вихідних файлів, якщо вона не існує
+OUTPUT_DIR="./audit_output"
+mkdir -p "$OUTPUT_DIR"
+
+# Створення файлу звіту
+REPORT_FILE="report_php_2"
+touch "$REPORT_FILE"
+
+# Функція для логування
+log() {
+  echo "[INFO] $1" | tee -a "$REPORT_FILE"
+}
+
+# Функція для відображення результатів
+result() {
+  local message="$1"
+  local status="$2"
+  echo "[$status] $message" | tee -a "$REPORT_FILE"
+}
+
+# Функція для розділів
+section() {
+  echo -e "\n=== $1 ===" | tee -a "$REPORT_FILE"
+}
+
+# Функція для підрозділів
+subsection() {
+  echo -e "\n-- $1 --" | tee -a "$REPORT_FILE"
+}
+
+# Визначення шляхів до веб-директорій
+WEB_PATHS=("/var/www" "/var/www/html" "/usr/share/nginx" "/usr/local/apache2/htdocs")
+
 # Перевірка конфігурації SSH
 section "АУДИТ SSH"
 if [ -f "/etc/ssh/sshd_config" ]; then
@@ -69,11 +104,11 @@ if [ -f "/etc/ssh/sshd_config" ]; then
     log "Знайдені файли authorized_keys збережені в файлі: authorized_keys_files.txt"
 
     # Підрахунок ключів для кожного користувача
-    echo "Підрахунок ключів для користувачів:" | tee -a "$LOG_FILE"
+    echo "Підрахунок ключів для користувачів:" | tee -a "$REPORT_FILE"
     for keyfile in $AUTHORIZED_KEYS_FILES; do
       user=$(echo "$keyfile" | awk -F '/' '{print $3}')
       count=$(wc -l < "$keyfile")
-      echo "$user: $count ключів" | tee -a "$LOG_FILE"
+      echo "$user: $count ключів" | tee -a "$REPORT_FILE"
     done
   else
     log "Файлів authorized_keys не знайдено"
@@ -93,7 +128,7 @@ if [ -f "/etc/sudoers" ]; then
   COUNT=$(wc -l < "$OUTPUT_DIR/sudo_nopasswd.txt")
   if [ "$COUNT" -gt 0 ]; then
     result "Виявлено $COUNT записів sudo без автентифікації" "WARNING"
-    cat "$OUTPUT_DIR/sudo_nopasswd.txt" | tee -a "$LOG_FILE"
+    cat "$OUTPUT_DIR/sudo_nopasswd.txt" | tee -a "$REPORT_FILE"
   else
     result "Записів sudo без автентифікації не виявлено" "OK"
   fi
@@ -131,7 +166,7 @@ if command -v rpm &>/dev/null; then
   COUNT=$(wc -l < "$OUTPUT_DIR/modified_package_files.txt")
   if [ "$COUNT" -gt 0 ]; then
     result "Виявлено $COUNT модифікованих файлів пакетів" "WARNING"
-    head -10 "$OUTPUT_DIR/modified_package_files.txt" | tee -a "$LOG_FILE"
+    head -10 "$OUTPUT_DIR/modified_package_files.txt" | tee -a "$REPORT_FILE"
     log "Повний список у файлі: modified_package_files.txt"
   else
     result "Модифікованих файлів пакетів не виявлено" "OK"
@@ -175,7 +210,7 @@ if command -v lsof &>/dev/null; then
   COUNT=$(wc -l < "$OUTPUT_DIR/lsof_suspicious.txt")
   if [ "$COUNT" -gt 0 ]; then
     result "Виявлено $COUNT підозрілих мережевих з'єднань" "WARNING"
-    head -10 "$OUTPUT_DIR/lsof_suspicious.txt" | tee -a "$LOG_FILE"
+    head -10 "$OUTPUT_DIR/lsof_suspicious.txt" | tee -a "$REPORT_FILE"
     log "Повний список у файлі: lsof_suspicious.txt"
   else
     result "Підозрілих мережевих з'єднань не виявлено" "OK"
@@ -201,7 +236,7 @@ fi
 if [ -f "/etc/ld.so.preload" ]; then
   cat "/etc/ld.so.preload" > "$OUTPUT_DIR/ld_preload_file.txt"
   result "Виявлено файл /etc/ld.so.preload" "WARNING"
-  cat "$OUTPUT_DIR/ld_preload_file.txt" | tee -a "$LOG_FILE"
+  cat "$OUTPUT_DIR/ld_preload_file.txt" | tee -a "$REPORT_FILE"
 else
   result "Файл /etc/ld.so.preload не знайдено" "OK"
 fi
@@ -338,6 +373,8 @@ EOF
   # Запуск скрипту перевірки
   php "$OUTPUT_DIR/detect_encoded.php" > "$OUTPUT_DIR/encoded_php_results.txt"
   log "Результати пошуку обфускованого PHP коду збережено в файлі: encoded_php_results.txt"
+  # Додаємо результати також до основного звіту
+  cat "$OUTPUT_DIR/encoded_php_results.txt" | tee -a "$REPORT_FILE"
 
   # Пошук незвичайних патернів в PHP файлах
   subsection "Перевірка PHP захисту від модифікації"
@@ -345,7 +382,7 @@ EOF
   COUNT=$(wc -l < "$OUTPUT_DIR/php_modification_checks.txt" 2>/dev/null || echo "0")
   if [ "$COUNT" -gt 0 ]; then
     result "Виявлено $COUNT PHP файлів з перевіркою модифікацій" "WARNING"
-    head -10 "$OUTPUT_DIR/php_modification_checks.txt" | tee -a "$LOG_FILE"
+    head -10 "$OUTPUT_DIR/php_modification_checks.txt" | tee -a "$REPORT_FILE"
     log "Повний список у файлі: php_modification_checks.txt"
   else
     result "PHP файлів з перевіркою модифікацій не виявлено" "OK"
@@ -375,7 +412,7 @@ EOF
     COUNT=$(wc -l < "$OUTPUT_DIR/webshell_signatures.txt")
     if [ "$COUNT" -gt 0 ]; then
       result "Виявлено $COUNT потенційних веб-шелів за сигнатурами" "WARNING"
-      head -10 "$OUTPUT_DIR/webshell_signatures.txt" | tee -a "$LOG_FILE"
+      head -10 "$OUTPUT_DIR/webshell_signatures.txt" | tee -a "$REPORT_FILE"
       log "Повний список у файлі: webshell_signatures.txt"
     else
       result "Потенційних веб-шелів за сигнатурами не виявлено" "OK"
@@ -404,7 +441,7 @@ if [ "$COUNT" -gt 0 ]; then
     if [ -f "/proc/$pid/cmdline" ]; then
       cmdline=$(cat "/proc/$pid/cmdline" | tr '\0' ' ')
     fi
-    echo "PID: $pid, cmdline: $cmdline" | tee -a "$LOG_FILE"
+    echo "PID: $pid, cmdline: $cmdline" | tee -a "$REPORT_FILE"
   done
 else
   result "Прихованих процесів не виявлено" "OK"
@@ -465,7 +502,7 @@ grep -v -f "$OUTPUT_DIR/common_suid_files.txt" "$OUTPUT_DIR/suid_sgid_files.txt"
 COUNT=$(wc -l < "$OUTPUT_DIR/unusual_suid_sgid.txt")
 if [ "$COUNT" -gt 0 ]; then
   result "Виявлено $COUNT нестандартних SUID/SGID файлів" "WARNING"
-  head -10 "$OUTPUT_DIR/unusual_suid_sgid.txt" | tee -a "$LOG_FILE"
+  head -10 "$OUTPUT_DIR/unusual_suid_sgid.txt" | tee -a "$REPORT_FILE"
   log "Повний список у файлі: unusual_suid_sgid.txt"
 else
   result "Нестандартних SUID/SGID файлів не виявлено" "OK"
@@ -484,12 +521,15 @@ find /bin /sbin /usr/bin /usr/sbin /etc -type f -not -path "*/\.*" -anewer /proc
 COUNT=$(wc -l < "$OUTPUT_DIR/suspicious_timestamps.txt")
 if [ "$COUNT" -gt 0 ]; then
   result "Виявлено $COUNT файлів з підозрілими часовими мітками" "WARNING"
-  head -10 "$OUTPUT_DIR/suspicious_timestamps.txt" | tee -a "$LOG_FILE"
+  head -10 "$OUTPUT_DIR/suspicious_timestamps.txt" | tee -a "$REPORT_FILE"
   log "Повний список у файлі: suspicious_timestamps.txt"
 else
   result "Файлів з підозрілими часовими мітками не виявлено" "OK"
 fi
 
+# Перевірка інтеграції з Active Directory / Domain Controller
+section "АУДИТ ДОМЕННОЇ ІНТЕГРАЦІЇ"
+if command -v realm &>/dev/null || [ -f "/etc/sssd/sssd.conf" ] || [ -
 # Перевірка інтеграції з Active Directory / Domain Controller
 section "АУДИТ ДОМЕННОЇ ІНТЕГРАЦІЇ"
 if command -v realm &>/dev/null || [ -f "/etc/sssd/sssd.conf" ] || [ -f "/etc/krb5.conf" ]; then
@@ -503,7 +543,7 @@ if command -v realm &>/dev/null || [ -f "/etc/sssd/sssd.conf" ] || [ -f "/etc/kr
 
   # Перевірка конфігурації SSSD
   if [ -f "/etc/sssd/sssd.conf" ]; then
-    cp "/etc/sssd/sssd.conf" "$OUTPUT_DIR/sssd.conf" 2>/dev/null || echo "Не вдалося скопіювати /etc/sssd/sssd.conf" | tee -a "$LOG_FILE"
+    cp "/etc/sssd/sssd.conf" "$OUTPUT_DIR/sssd.conf" 2>/dev/null || echo "Не вдалося скопіювати /etc/sssd/sssd.conf" | tee -a "$REPORT_FILE"
     log "Конфігурація SSSD збережена в файлі: sssd.conf"
   fi
 
@@ -513,4 +553,167 @@ if command -v realm &>/dev/null || [ -f "/etc/sssd/sssd.conf" ] || [ -f "/etc/kr
     log "Конфігурація Kerberos збережена в файлі: krb5.conf"
   fi
 
-  # Перев
+  # Перевірка файлів keytab
+  if [ -f "/etc/krb5.keytab" ]; then
+    klist -kt /etc/krb5.keytab > "$OUTPUT_DIR/keytab_contents.txt" 2>&1
+    log "Список записів keytab збережено в файлі: keytab_contents.txt"
+  fi
+fi
+
+# Перевірка cron-завдань
+section "ПЕРЕВІРКА CRON-ЗАВДАНЬ"
+subsection "Системні cron-завдання"
+
+# Збирання всіх cron-завдань
+find /etc/cron* -type f -not -path "*/\.*" | sort > "$OUTPUT_DIR/cron_files.txt"
+log "Список файлів cron збережено в файлі: cron_files.txt"
+
+# Перевірка нестандартних або підозрілих cron-завдань
+for cron_file in $(cat "$OUTPUT_DIR/cron_files.txt"); do
+  if [ -f "$cron_file" ]; then
+    echo "=== $cron_file ===" >> "$OUTPUT_DIR/cron_contents.txt"
+    cat "$cron_file" >> "$OUTPUT_DIR/cron_contents.txt"
+    echo "" >> "$OUTPUT_DIR/cron_contents.txt"
+  fi
+done
+log "Вміст cron-файлів збережено в файлі: cron_contents.txt"
+
+# Перевірка користувацьких cron-завдань
+for user_cron in /var/spool/cron/*; do
+  if [ -f "$user_cron" ]; then
+    user=$(basename "$user_cron")
+    echo "=== Cron для користувача $user ===" >> "$OUTPUT_DIR/user_crons.txt"
+    cat "$user_cron" >> "$OUTPUT_DIR/user_crons.txt"
+    echo "" >> "$OUTPUT_DIR/user_crons.txt"
+  fi
+done
+log "Користувацькі cron-завдання збережено в файлі: user_crons.txt"
+
+# Пошук підозрілих записів cron
+grep -E "(curl|wget|nc|ncat|bash.*\-i|sh.*\-i|perl.*\-e)" "$OUTPUT_DIR/cron_contents.txt" "$OUTPUT_DIR/user_crons.txt" 2>/dev/null > "$OUTPUT_DIR/suspicious_crons.txt"
+COUNT=$(wc -l < "$OUTPUT_DIR/suspicious_crons.txt" 2>/dev/null || echo "0")
+if [ "$COUNT" -gt 0 ]; then
+  result "Виявлено $COUNT потенційно підозрілих cron-завдань" "WARNING"
+  cat "$OUTPUT_DIR/suspicious_crons.txt" | tee -a "$REPORT_FILE"
+else
+  result "Підозрілих cron-завдань не виявлено" "OK"
+fi
+
+# Перевірка запланованих завдань systemd
+section "ПЕРЕВІРКА SYSTEMD"
+subsection "Запущені сервіси systemd"
+if command -v systemctl &>/dev/null; then
+  systemctl list-units --type=service --state=running > "$OUTPUT_DIR/running_services.txt"
+  log "Список запущених сервісів збережено в файлі: running_services.txt"
+
+  # Перевірка особливих або автоматично запущених сервісів
+  systemctl list-unit-files --state=enabled > "$OUTPUT_DIR/enabled_services.txt"
+  log "Список автоматично запущених сервісів збережено в файлі: enabled_services.txt"
+
+  # Пошук нестандартних сервісів
+  grep -v ".service" "$OUTPUT_DIR/enabled_services.txt" > "$OUTPUT_DIR/unusual_services.txt"
+  COUNT=$(wc -l < "$OUTPUT_DIR/unusual_services.txt")
+  if [ "$COUNT" -gt 0 ]; then
+    result "Виявлено $COUNT нестандартних systemd-юнітів" "WARNING"
+    cat "$OUTPUT_DIR/unusual_services.txt" | tee -a "$REPORT_FILE"
+  else
+    result "Нестандартних systemd-юнітів не виявлено" "OK"
+  fi
+fi
+
+# Пошук файлів з альтернативними правами доступу
+section "ПОШУК ФАЙЛІВ З АЛЬТЕРНАТИВНИМИ ПРАВАМИ ДОСТУПУ"
+subsection "Перевірка ACL на важливих файлах"
+if command -v getfacl &>/dev/null; then
+  for dir in /etc /home /var/www /root; do
+    if [ -d "$dir" ]; then
+      find "$dir" -type f -perm /007 -exec ls -la {} \; 2>/dev/null | head -100 >> "$OUTPUT_DIR/world_writable_files.txt"
+    fi
+  done
+  
+  COUNT=$(wc -l < "$OUTPUT_DIR/world_writable_files.txt" 2>/dev/null || echo "0")
+  if [ "$COUNT" -gt 0 ]; then
+    result "Виявлено $COUNT файлів з правами запису для всіх" "WARNING"
+    head -10 "$OUTPUT_DIR/world_writable_files.txt" | tee -a "$REPORT_FILE"
+    log "Повний список у файлі: world_writable_files.txt"
+  else
+    result "Файлів з правами запису для всіх не виявлено" "OK"
+  fi
+fi
+
+# Перевірка політик безпеки
+section "ПЕРЕВІРКА ПОЛІТИК БЕЗПЕКИ"
+subsection "Перевірка політик паролів"
+
+if [ -f "/etc/pam.d/common-password" ]; then
+  cp "/etc/pam.d/common-password" "$OUTPUT_DIR/pam_password_policy.txt"
+  log "Політика паролів PAM збережена в файлі: pam_password_policy.txt"
+  
+  # Перевірка наявності необхідних налаштувань
+  if grep -q "pam_pwquality.so" "/etc/pam.d/common-password" || grep -q "pam_cracklib.so" "/etc/pam.d/common-password"; then
+    result "Використовується перевірка якості паролів" "OK"
+  else
+    result "Перевірка якості паролів не використовується" "WARNING"
+  fi
+fi
+
+# Перевірка мережевих налаштувань
+section "ПЕРЕВІРКА МЕРЕЖЕВИХ НАЛАШТУВАНЬ"
+subsection "Перевірка правил iptables"
+
+if command -v iptables &>/dev/null; then
+  iptables -L -n > "$OUTPUT_DIR/iptables_rules.txt" 2>&1
+  log "Правила iptables збережено в файлі: iptables_rules.txt"
+  
+  # Перевірка наявності правил
+  RULE_COUNT=$(grep -c "Chain" "$OUTPUT_DIR/iptables_rules.txt")
+  if [ "$RULE_COUNT" -gt 3 ]; then
+    result "Виявлено активні правила iptables" "OK"
+  else
+    result "Правила iptables не налаштовані" "WARNING"
+  fi
+fi
+
+# Перевірка наявності інструментів для віддаленого доступу
+section "ПЕРЕВІРКА ЗАСОБІВ ВІДДАЛЕНОГО ДОСТУПУ"
+subsection "Пошук інструментів віддаленого доступу"
+
+REMOTE_TOOLS=("teamviewer" "anydesk" "vnc" "rdesktop" "xrdp" "x11vnc" "tightvnc")
+for tool in "${REMOTE_TOOLS[@]}"; do
+  if command -v "$tool" &>/dev/null || dpkg -l | grep -qi "$tool" || rpm -qa | grep -qi "$tool"; then
+    result "Виявлено інструмент віддаленого доступу: $tool" "WARNING"
+    echo "$tool" >> "$OUTPUT_DIR/remote_access_tools.txt"
+  fi
+done
+
+if [ -f "$OUTPUT_DIR/remote_access_tools.txt" ]; then
+  cat "$OUTPUT_DIR/remote_access_tools.txt" | tee -a "$REPORT_FILE"
+else
+  result "Інструментів віддаленого доступу не виявлено" "OK"
+fi
+
+# Підсумок перевірки
+section "ПІДСУМОК АУДИТУ"
+echo "Аудит виконано: $(date)" | tee -a "$REPORT_FILE"
+echo "Файл звіту: $REPORT_FILE" | tee -a "$REPORT_FILE"
+echo "Директорія з результатами: $OUTPUT_DIR" | tee -a "$REPORT_FILE"
+
+# Підрахунок виявлених проблем
+WARNING_COUNT=$(grep -c WARNING "$REPORT_FILE")
+CRITICAL_COUNT=$(grep -c CRITICAL "$REPORT_FILE")
+OK_COUNT=$(grep -c "\[OK\]" "$REPORT_FILE")
+
+echo "Виявлено:" | tee -a "$REPORT_FILE"
+echo "- Критичних проблем: $CRITICAL_COUNT" | tee -a "$REPORT_FILE"
+echo "- Попереджень: $WARNING_COUNT" | tee -a "$REPORT_FILE"
+echo "- Успішних перевірок: $OK_COUNT" | tee -a "$REPORT_FILE"
+
+log "Аудит завершено. Загальна кількість перевірок: $(($WARNING_COUNT + $CRITICAL_COUNT + $OK_COUNT))"
+
+# Архівація результатів
+if command -v tar &>/dev/null; then
+  tar -czf "audit_results_$(date +%Y%m%d_%H%M%S).tar.gz" "$OUTPUT_DIR" "$REPORT_FILE"
+  log "Результати аудиту заархівовано"
+fi
+
+exit 0
